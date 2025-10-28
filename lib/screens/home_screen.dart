@@ -34,6 +34,14 @@ class HomeScreen extends StatelessWidget {
           return NoteItem(
             title: note.title!,
             content: note.content!,
+            isDone: note.isDone!,
+            onToggleDone: (value) {
+              Provider.of<NotesProvider>(context, listen: false)
+                  .toggleDone(note, value);
+            },
+            onDelete: () {
+              Provider.of<NotesProvider>(context, listen: false).deleteNote(note);
+            },
           );
         },
       ),

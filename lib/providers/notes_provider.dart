@@ -11,5 +11,15 @@ class NotesProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleDone(Note note, bool? value) {
+    note.isDone = value ?? false;
+    notifyListeners();
+  }
+
+  void deleteNote(Note note) {
+    _notes.remove(note);
+    notifyListeners();
+  }
+
   int get noteCount => _notes.length;
 }

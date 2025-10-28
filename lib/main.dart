@@ -15,7 +15,18 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Noti App',
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+          primarySwatch: Colors.blue, // здесь меняем на синий
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: Colors.white,
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.blue, // цвет AppBar
+          ),
+          floatingActionButtonTheme: const FloatingActionButtonThemeData(
+            backgroundColor: Colors.blue, // цвет FAB
+          ),
+          checkboxTheme: CheckboxThemeData(
+            fillColor: MaterialStateProperty.all(Colors.blue), // цвет чекбоксов
+          ),
         ),
         home: HomeScreen(),
       ),
