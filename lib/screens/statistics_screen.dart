@@ -17,29 +17,25 @@ class StatisticsScreen extends StatelessWidget {
           final allNotes = notesProvider.notes;
           final completedNotes = allNotes.where((note) => note.isDone).length;
           final totalNotes = allNotes.length;
-          
-          // Группировка по категориям
+
           final categoriesMap = <String, int>{};
           for (var note in allNotes) {
             categoriesMap[note.category] = (categoriesMap[note.category] ?? 0) + 1;
           }
-          
-          // Статистика по дедлайнам
+
           final now = DateTime.now();
-          final overdue = allNotes.where((note) => 
-            !note.isDone && note.deadline.isBefore(now)).length;
-          final upcoming = allNotes.where((note) => 
-            !note.isDone && note.deadline.isAfter(now)).length;
-          
-          final completePercentage = totalNotes > 0 
-            ? ((completedNotes / totalNotes) * 100).toStringAsFixed(1)
-            : '0.0';
+          final overdue = allNotes.where((note) => !note.isDone && note.deadline.isBefore(now)).length;
+          final upcoming = allNotes.where((note) => !note.isDone && note.deadline.isAfter(now)).length;
+
+          final completePercentage = totalNotes > 0
+              ? ((completedNotes / totalNotes) * 100).toStringAsFixed(1)
+              : '0.0';
 
           return LayoutBuilder(
             builder: (context, constraints) {
               final isTablet = constraints.maxWidth >= 600;
               final isPc = constraints.maxWidth >= 1200;
-              
+
               return Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -61,7 +57,6 @@ class StatisticsScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Основные метрики - адаптивная сетка
                           _AdaptiveMetricsGrid(
                             isTablet: isTablet,
                             isPc: isPc,
@@ -69,20 +64,18 @@ class StatisticsScreen extends StatelessWidget {
                             completedNotes: completedNotes,
                             completePercentage: completePercentage,
                           ),
-                          
+
                           SizedBox(height: isPc ? 32 : 24),
-                          
-                          // Блок прогресса для мобильного
+
+                          // Для узких экранов показываем детальную карточку прогресса отдельно
                           if (!isTablet)
                             _ProgressCard(
                               completed: completedNotes,
                               total: totalNotes,
                             ),
-                          
-                          if (!isTablet)
-                            SizedBox(height: 16),
-                          
-                          // Двухколоночный layout для планшета и ПК
+
+                          if (!isTablet) SizedBox(height: 16),
+
                           if (isTablet && !isPc)
                             _TabletLayout(
                               overdue: overdue,
@@ -121,7 +114,7 @@ class StatisticsScreen extends StatelessWidget {
   }
 }
 
-// Адаптивная сетка метрик
+// Адаптивная сетка метрик с динамическим childAspectRatio
 class _AdaptiveMetricsGrid extends StatelessWidget {
   final bool isTablet;
   final bool isPc;
@@ -139,48 +132,59 @@ class _AdaptiveMetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final crossAxisCount = isPc ? 4 : isTablet ? 3 : 2;
-    final spacing = isPc ? 24.0 : isTablet ? 20.0 : 16.0;
+    return LayoutBuilder(builder: (context, constraints) {
+      final availableWidth = constraints.maxWidth.isFinite ? constraints.maxWidth : MediaQuery.of(context).size.width;
+      final crossAxisCount = isPc ? 4 : isTablet ? 3 : 2;
+      final spacing = isPc ? 24.0 : isTablet ? 20.0 : 12.0;
 
-    return GridView.count(
-      crossAxisCount: crossAxisCount,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: spacing,
-      crossAxisSpacing: spacing,
-      childAspectRatio: isPc ? 1.1 : 1.0,
-      children: [
-        _StatCard(
-          title: 'Всего заметок',
-          value: totalNotes.toString(),
-          icon: Icons.note_alt_outlined,
-          color: Colors.blue,
-          isLarge: isPc,
-        ),
-        _StatCard(
-          title: 'Выполнено',
-          value: completedNotes.toString(),
-          icon: Icons.check_circle_outline,
-          color: Colors.green,
-          isLarge: isPc,
-        ),
-        _StatCard(
-          title: 'В процессе',
-          value: (totalNotes - completedNotes).toString(),
-          icon: Icons.pending_actions,
-          color: Colors.orange,
-          isLarge: isPc,
-        ),
-        if (isPc)
+      // Расчёт ширины одной ячейки и динамического childAspectRatio,
+      // чтобы на маленьких экранах ячейки были выше (чтобы текст не обрезался).
+      final totalSpacing = (crossAxisCount - 1) * spacing;
+      final tileWidth = (availableWidth - totalSpacing) / crossAxisCount;
+      // задаём желаемую высоту в зависимости от режима
+      final desiredTileHeight = isPc ? 180.0 : isTablet ? 140.0 : 170.0;
+      final childAspectRatio = tileWidth / desiredTileHeight;
+
+      return GridView.count(
+        crossAxisCount: crossAxisCount,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: spacing,
+        crossAxisSpacing: spacing,
+        childAspectRatio: childAspectRatio.clamp(0.6, 2.5),
+        children: [
+          _StatCard(
+            title: 'Всего заметок',
+            value: totalNotes.toString(),
+            icon: Icons.note_alt_outlined,
+            color: Colors.blue,
+            isLarge: isPc,
+          ),
+          _StatCard(
+            title: 'Выполнено',
+            value: completedNotes.toString(),
+            icon: Icons.check_circle_outline,
+            color: Colors.green,
+            isLarge: isPc,
+          ),
+          _StatCard(
+            title: 'В процессе',
+            value: (totalNotes - completedNotes).toString(),
+            icon: Icons.pending_actions,
+            color: Colors.orange,
+            isLarge: isPc,
+          ),
+          // Всегда показываем карточку "Прогресс" — теперь будет видна и на телефонах
           _StatCard(
             title: 'Прогресс',
             value: '$completePercentage%',
             icon: Icons.trending_up,
             color: Colors.purple,
-            isLarge: true,
+            isLarge: isPc,
           ),
-      ],
-    );
+        ],
+      );
+    });
   }
 }
 
@@ -473,61 +477,70 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fontSize = isLarge ? 32.0 : 28.0;
-    final padding = isLarge ? 20.0 : 16.0;
-    final iconSize = isLarge ? 32.0 : 28.0;
+    return LayoutBuilder(builder: (context, constraints) {
+      final isCompact = constraints.maxHeight < 130 || constraints.maxWidth < 140;
+      final fontSizeValue = isLarge ? 32.0 : 28.0;
+      final effectiveFontSize = isCompact ? (fontSizeValue * 0.7) : fontSizeValue;
+      final padding = isLarge ? (isCompact ? 12.0 : 20.0) : (isCompact ? 12.0 : 16.0);
+      final iconSize = isLarge ? (isCompact ? 24.0 : 32.0) : (isCompact ? 20.0 : 28.0);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(padding),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: iconSize),
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            Column(
-              children: [
-                Text(
+          ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(padding),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: iconSize),
+              ),
+              const SizedBox(height: 8),
+              // Числовое значение — обёрнуто в FittedBox, чтобы масштабироваться при переполнении
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
                   value,
+                  maxLines: 1,
                   style: TextStyle(
-                    fontSize: fontSize,
+                    fontSize: effectiveFontSize,
                     fontWeight: FontWeight.bold,
                     color: color,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: isLarge ? 13 : 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: isLarge ? (isCompact ? 12.0 : 13.0) : (isCompact ? 11.0 : 12.0),
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 }
 
@@ -700,68 +713,71 @@ class _ProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percentage = total > 0 ? completed / total : 0.0;
-    
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(isLarge ? 24 : 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Общий прогресс',
-                  style: TextStyle(
-                    fontSize: isLarge ? 17 : 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  '${(percentage * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: isLarge ? 20 : 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: isLarge ? 18 : 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: percentage,
-                minHeight: isLarge ? 14 : 12,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Color.lerp(Colors.orange, Colors.green, percentage)!,
-                ),
-              ),
-            ),
-            SizedBox(height: isLarge ? 14 : 12),
-            Text(
-              'Выполнено $completed из $total заметок',
-              style: TextStyle(
-                fontSize: isLarge ? 14 : 13,
-                color: Colors.grey[600],
-              ),
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final isCompact = constraints.maxWidth < 360;
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.08),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-      ),
-    );
+        child: Padding(
+          padding: EdgeInsets.all(isLarge ? 24 : (isCompact ? 14 : 20)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Общий прогресс',
+                    style: TextStyle(
+                      fontSize: isLarge ? 17 : 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    '${(percentage * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(
+                      fontSize: isLarge ? 20 : 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: isLarge ? 18 : 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: percentage,
+                  minHeight: isLarge ? 14 : 12,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Color.lerp(Colors.orange, Colors.green, percentage)!,
+                  ),
+                ),
+              ),
+              SizedBox(height: isLarge ? 14 : 12),
+              Text(
+                'Выполнено $completed из $total заметок',
+                style: TextStyle(
+                  fontSize: isLarge ? 14 : 13,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }
